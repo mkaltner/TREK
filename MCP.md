@@ -162,7 +162,7 @@ that match your granted scopes for that session.
 |-----------------------------------------|--------------------------------------------------------------------------------------------------------------------------------------------------|
 | **Admin activation required**           | The MCP addon must be enabled by an admin before any user can access it.                                                                         |
 | **Per-user scoping**                    | Each MCP session is scoped to the authenticated user. You can only access trips you own or are a member of.                                      |
-| **No image uploads**                    | Cover images cannot be set through MCP. Use the web UI to upload trip covers.                                                                    |
+| **Image uploads**                       | MCP can search Immich and attach provider-backed Journey gallery/entry images. Binary cover uploads still require the web UI.                    |
 | **Reservations are created as pending** | When the AI creates a reservation, it starts with `pending` status. You must confirm it manually or ask the AI to set the status to `confirmed`. |
 | **Demo mode restrictions**              | If TREK is running in demo mode, all write operations through MCP are blocked.                                                                   |
 | **Rate limiting**                       | 300 requests per minute per user (configurable via `MCP_RATE_LIMIT`). Exceeding this returns a `429` error.                                     |
@@ -508,8 +508,8 @@ For flights, trains, cars, and cruises, use the **Transport** tools above. Reser
 | `add_journey_trip`                | Link an existing trip to a journey.                                                                        |
 | `remove_journey_trip`             | Remove a trip from a journey.                                                                              |
 | `list_journey_entries`            | List all entries in a journey (date, text, mood, linked trip).                                             |
-| `create_journey_entry`            | Add an entry to a journey with optional title, body text, date, linked trip, and sort order.               |
-| `update_journey_entry`            | Edit a journey entry's title, body, date, or mood.                                                         |
+| `create_journey_entry`            | Add an entry to a journey with optional title, body text, date, location, and sort order.                  |
+| `update_journey_entry`            | Edit a journey entry's title, body, date, mood, or location.                                               |
 | `delete_journey_entry`            | Remove an entry from a journey.                                                                            |
 | `reorder_journey_entries`         | Reorder entries in a journey by providing the new ordered list of entry IDs.                               |
 | `list_journey_contributors`       | List the contributors of a journey (owner and invited editors/viewers).                                    |
@@ -519,6 +519,12 @@ For flights, trains, cars, and cruises, use the **Transport** tools above. Reser
 | `update_journey_preferences`      | Update display preferences for a journey (e.g. hide skeleton entries).                                     |
 | `get_journey_suggestions`         | Get suggested trips to add to journeys (based on recent trip history).                                     |
 | `list_journey_available_trips`    | List all trips available to the current user for linking to a journey.                                     |
+| `journey_media_candidates`        | Search Immich for image candidates matching a journey, linked trip, entry date, or explicit date range.    |
+| `journey_entry_media_candidates`  | Group Immich image candidates by Journey entry date for day/place photo ranking and attach workflows.      |
+| `journey_entry_description_context` | Return entry details, attached photo metadata, and same-day candidates for writing entry descriptions.    |
+| `journey_media_readback`          | Read Journey cover, gallery, entries, and attached media for verification after media writes.              |
+| `journey_gallery_attach_provider_asset` | Attach an Immich provider asset to a Journey gallery.                                             |
+| `journey_entry_attach_provider_asset`   | Attach an Immich provider asset to a Journey entry and gallery.                                    |
 | `get_journey_share_link`          | Get the current public share link for a journey.                                                           |
 | `create_journey_share_link`       | Create or update the public share link for a journey.                                                      |
 | `delete_journey_share_link`       | Revoke the public share link for a journey.                                                                |

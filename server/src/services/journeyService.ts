@@ -24,6 +24,17 @@ const GALLERY_SELECT = `
 `;
 const GALLERY_JOIN = 'journey_photos gp JOIN trek_photos tp ON tp.id = gp.photo_id';
 
+type JourneyEntryWithMapFields = JourneyEntry & {
+  pros_cons?: string | null;
+  source_place_name?: string | null;
+  source_place_address?: string | null;
+  source_place_lat?: number | null;
+  source_place_lng?: number | null;
+  effective_location_name?: string | null;
+  effective_location_lat?: number | null;
+  effective_location_lng?: number | null;
+};
+
 function broadcastJourneyEvent(journeyId: number, event: string, data: Record<string, unknown>, excludeSocketId?: string | number) {
   const contributors = db.prepare(
     'SELECT user_id FROM journey_contributors WHERE journey_id = ?'
@@ -36,6 +47,38 @@ function broadcastJourneyEvent(journeyId: number, event: string, data: Record<st
   for (const uid of userIds) {
     broadcastToUser(uid, { type: event, journeyId, ...data }, excludeSocketId);
   }
+}
+
+function enrichEntryMapFields(entries: JourneyEntry[]): JourneyEntryWithMapFields[] {
+  const sourcePlaceIds = [...new Set(entries.map(e => e.source_place_id).filter((id): id is number => typeof id === 'number'))];
+  const placesById = new Map<number, { id: number; name: string | null; address: string | null; lat: number | null; lng: number | null }>();
+
+  if (sourcePlaceIds.length) {
+    const placeholders = sourcePlaceIds.map(() => '?').join(',');
+    const places = db.prepare(
+      `SELECT id, name, address, lat, lng FROM places WHERE id IN (${placeholders})`
+    ).all(...sourcePlaceIds) as { id: number; name: string | null; address: string | null; lat: number | null; lng: number | null }[];
+    for (const place of places) placesById.set(place.id, place);
+  }
+
+  return entries.map(entry => {
+    const sourcePlace = entry.source_place_id ? placesById.get(entry.source_place_id) : undefined;
+    const sourcePlaceName = sourcePlace?.name ?? null;
+    const sourcePlaceAddress = sourcePlace?.address ?? null;
+    const sourcePlaceLat = sourcePlace?.lat ?? null;
+    const sourcePlaceLng = sourcePlace?.lng ?? null;
+
+    return {
+      ...entry,
+      source_place_name: sourcePlaceName,
+      source_place_address: sourcePlaceAddress,
+      source_place_lat: sourcePlaceLat,
+      source_place_lng: sourcePlaceLng,
+      effective_location_name: entry.location_name || sourcePlaceAddress || sourcePlaceName || null,
+      effective_location_lat: entry.location_lat ?? sourcePlaceLat,
+      effective_location_lng: entry.location_lng ?? sourcePlaceLng,
+    };
+  });
 }
 
 // ── Access control ───────────────────────────────────────────────────────
@@ -119,9 +162,10 @@ export function getJourneyFull(journeyId: number, userId: number) {
   const journey = canAccessJourney(journeyId, userId);
   if (!journey) return null;
 
-  const entries = db.prepare(
+  const rawEntries = db.prepare(
     'SELECT * FROM journey_entries WHERE journey_id = ? ORDER BY entry_date ASC, sort_order ASC, id ASC'
   ).all(journeyId) as JourneyEntry[];
+  const entries = enrichEntryMapFields(rawEntries);
 
   const photos = db.prepare(
     `SELECT ${JP_SELECT} FROM ${JP_JOIN} WHERE jep.entry_id IN (SELECT id FROM journey_entries WHERE journey_id = ?) ORDER BY jep.sort_order ASC`
@@ -170,7 +214,7 @@ export function getJourneyFull(journeyId: number, userId: number) {
   // stats
   const entryCount = entries.filter(e => e.type === 'entry').length;
   const photoCount = (gallery as any[]).length;
-  const places = [...new Set(entries.map(e => e.location_name).filter(Boolean))];
+  const places = [...new Set(entries.map(e => e.effective_location_name).filter(Boolean))];
 
   const userPrefs = db.prepare(
     'SELECT hide_skeletons FROM journey_contributors WHERE journey_id = ? AND user_id = ?'
@@ -328,7 +372,7 @@ export function syncTripPlaces(journeyId: number, tripId: number, authorId: numb
     `).run(
       journeyId, tripId, place.id, authorId,
       place.name, entryDate, entryTime,
-      place.address || place.name, place.lat || null, place.lng || null,
+      place.address || place.name, place.lat ?? null, place.lng ?? null,
       nextOrder, now, now
     );
   }
@@ -387,7 +431,7 @@ export function onPlaceCreated(tripId: number, placeId: number) {
     `).run(
       link.journey_id, tripId, placeId, journey.user_id,
       place.name, entryDate, place.assignment_time || place.place_time || null,
-      place.address || place.name, place.lat || null, place.lng || null,
+      place.address || place.name, place.lat ?? null, place.lng ?? null,
       nextOrder, now, now
     );
   }
@@ -421,7 +465,7 @@ export function onPlaceUpdated(placeId: number) {
         place.day_date || entry.entry_date,
         place.assignment_time || place.place_time || entry.entry_time,
         place.address || place.name,
-        place.lat || null, place.lng || null,
+        place.lat ?? null, place.lng ?? null,
         now, entry.id
       );
     } else {
@@ -429,7 +473,7 @@ export function onPlaceUpdated(placeId: number) {
       db.prepare(`
         UPDATE journey_entries SET location_name = ?, location_lat = ?, location_lng = ?, updated_at = ?
         WHERE id = ?
-      `).run(place.address || place.name, place.lat || null, place.lng || null, now, entry.id);
+      `).run(place.address || place.name, place.lat ?? null, place.lng ?? null, now, entry.id);
     }
   }
 }
@@ -463,9 +507,10 @@ export function onPlaceDeleted(placeId: number) {
 export function listEntries(journeyId: number, userId: number) {
   if (!canAccessJourney(journeyId, userId)) return null;
 
-  const entries = db.prepare(
+  const rawEntries = db.prepare(
     'SELECT * FROM journey_entries WHERE journey_id = ? ORDER BY entry_date ASC, sort_order ASC, id ASC'
   ).all(journeyId) as JourneyEntry[];
+  const entries = enrichEntryMapFields(rawEntries);
 
   const photos = db.prepare(
     `SELECT ${JP_SELECT} FROM ${JP_JOIN} WHERE jep.entry_id IN (SELECT id FROM journey_entries WHERE journey_id = ?) ORDER BY jep.sort_order ASC`
@@ -501,6 +546,7 @@ export function createEntry(journeyId: number, userId: number, data: {
   tags?: string[];
   pros_cons?: { pros: string[]; cons: string[] };
   visibility?: string;
+  sort_order?: number;
 }, sid?: string): JourneyEntry | null {
   if (!canEdit(journeyId, userId)) return null;
 
@@ -530,7 +576,7 @@ export function createEntry(journeyId: number, userId: number, data: {
     data.tags?.length ? JSON.stringify(data.tags) : null,
     prosConsJson,
     data.visibility || 'private',
-    (maxOrder?.m ?? -1) + 1,
+    data.sort_order ?? ((maxOrder?.m ?? -1) + 1),
     now, now
   );
 

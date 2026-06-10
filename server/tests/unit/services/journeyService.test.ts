@@ -305,6 +305,34 @@ describe('getJourneyFull', () => {
 
     expect(result).toBeNull();
   });
+
+  it('JOURNEY-SVC-017b: includes effective map fields from linked source place when entry fields are missing', () => {
+    const { user } = createUser(testDb);
+    const journey = createJourney(testDb, user.id);
+    const trip = createTrip(testDb, user.id, {
+      title: 'Map Fallback Trip',
+      start_date: '2026-06-01',
+      end_date: '2026-06-01',
+    });
+    const place = createPlace(testDb, trip.id, { name: 'Fallback Place', lat: 38.6247, lng: -90.1848 });
+    testDb.prepare('UPDATE places SET address = ? WHERE id = ?').run('Gateway Arch, St. Louis, MO', place.id);
+
+    const now = Date.now();
+    testDb.prepare(`
+      INSERT INTO journey_entries (journey_id, source_trip_id, source_place_id, author_id, type, title, entry_date, visibility, sort_order, created_at, updated_at)
+      VALUES (?, ?, ?, ?, 'skeleton', ?, '2026-06-01', 'private', 0, ?, ?)
+    `).run(journey.id, trip.id, place.id, user.id, 'Fallback Place', now, now);
+
+    const result = getJourneyFull(journey.id, user.id) as any;
+    const entry = result.entries[0];
+
+    expect(entry.location_lat).toBeNull();
+    expect(entry.source_place_name).toBe('Fallback Place');
+    expect(entry.source_place_address).toBe('Gateway Arch, St. Louis, MO');
+    expect(entry.effective_location_name).toBe('Gateway Arch, St. Louis, MO');
+    expect(entry.effective_location_lat).toBe(38.6247);
+    expect(entry.effective_location_lng).toBe(-90.1848);
+  });
 });
 
 describe('updateJourney', () => {
