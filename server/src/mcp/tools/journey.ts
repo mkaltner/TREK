@@ -4,7 +4,7 @@ import { isDemoUser } from '../../services/authService';
 import {
   addContributor, addTripToJourney, canAccessJourney, createEntry, createJourney,
   addProviderPhoto, addProviderPhotoToGallery,
-  deleteEntry, deleteJourney, getJourneyFull, getSuggestions, listEntries,
+  deleteEntry, deleteJourney, deletePhoto, getJourneyFull, getSuggestions, listEntries,
   listJourneys, listUserTrips, removeContributor, removeTripFromJourney,
   reorderEntries, updateContributorRole, updateEntry, updateJourney,
   updateJourneyPreferences,
@@ -762,6 +762,29 @@ export function registerJourneyTools(server: McpServer, userId: number, scopes: 
       if (!photo) return notFound('Entry not found, access denied, or photo already attached.');
       const updated = getJourneyFull(journeyId, userId);
       return ok({ photo, journey: updated });
+    }
+  );
+
+  if (W) server.registerTool(
+    'delete_journey_photo',
+    {
+      description: 'Delete a Journey gallery photo, removing it from all entries in that Journey.',
+      inputSchema: {
+        journeyId: z.number().int().positive(),
+        photoId: z.number().int().positive().describe('Journey gallery photo id. This is the id returned on gallery and entry photo objects.'),
+      },
+      annotations: TOOL_ANNOTATIONS_DELETE,
+    },
+    async ({ journeyId, photoId }) => {
+      if (isDemoUser(userId)) return demoDenied();
+      const journey = getJourneyFull(journeyId, userId) as any;
+      if (!journey) return notFound('Journey not found or access denied.');
+      if (!(journey.gallery || []).some((photo: any) => photo.id === photoId)) {
+        return notFound('Photo not found in journey.');
+      }
+      const photo = deletePhoto(photoId, userId);
+      if (!photo) return notFound('Photo not found or access denied.');
+      return ok({ success: true, photo, journey: getJourneyFull(journeyId, userId) });
     }
   );
 

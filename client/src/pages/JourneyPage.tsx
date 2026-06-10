@@ -25,6 +25,15 @@ function pickGradient(id: number): string {
   return GRADIENTS[id % GRADIENTS.length]
 }
 
+function journeyCoverSrc(journey: { cover_image?: string | null; cover_photo_id?: number | null }): string | null {
+  if (journey.cover_image) {
+    return journey.cover_image.startsWith('http') || journey.cover_image.startsWith('/')
+      ? journey.cover_image
+      : `/uploads/${journey.cover_image}`
+  }
+  return journey.cover_photo_id ? `/api/photos/${journey.cover_photo_id}/thumbnail` : null
+}
+
 function timeAgo(timestamp: number, t: (k: string, p?: any) => string): string {
   const diff = Date.now() - timestamp
   const hours = Math.floor(diff / 3600000)
@@ -242,9 +251,9 @@ export default function JourneyPage() {
                   style={{ background: pickGradient(activeJourney.id) }}
                 >
                   {/* Cover image */}
-                  {activeJourney.cover_image && (
+                  {journeyCoverSrc(activeJourney) && (
                     <div className="absolute inset-0 z-[1]">
-                      <img src={`/uploads/${activeJourney.cover_image}`} className="w-full h-full object-cover" alt="" />
+                      <img src={journeyCoverSrc(activeJourney)!} className="w-full h-full object-cover" alt="" />
                       <div className="absolute inset-0" style={{ background: pickGradient(activeJourney.id), opacity: 0.45 }} />
                     </div>
                   )}
@@ -457,13 +466,14 @@ export default function JourneyPage() {
   )
 }
 
-function JourneyCard({ journey, onClick }: { journey: Journey & { entry_count?: number; photo_count?: number; place_count?: number; trip_date_min?: string | null; trip_date_max?: string | null }; onClick: () => void }) {
+function JourneyCard({ journey, onClick }: { journey: Journey & { entry_count?: number; photo_count?: number; cover_photo_id?: number | null; place_count?: number; trip_date_min?: string | null; trip_date_max?: string | null }; onClick: () => void }) {
   const { t } = useTranslation()
   const j = journey
   const entryCount = j.entry_count ?? 0
   const photoCount = j.photo_count ?? 0
   const placeCount = j.place_count ?? 0
   const lifecycle = computeJourneyLifecycle(j.status, j.trip_date_min, j.trip_date_max)
+  const coverSrc = journeyCoverSrc(j)
 
   return (
     <div
@@ -472,9 +482,9 @@ function JourneyCard({ journey, onClick }: { journey: Journey & { entry_count?: 
     >
       {/* Cover */}
       <div className="h-[170px] relative overflow-hidden" style={{ background: pickGradient(j.id) }}>
-        {j.cover_image && (
+        {coverSrc && (
           <>
-            <img src={`/uploads/${j.cover_image}`} className="absolute inset-0 w-full h-full object-cover" alt="" />
+            <img src={coverSrc} className="absolute inset-0 w-full h-full object-cover" alt="" />
             <div className="absolute inset-0" style={{ background: pickGradient(j.id), opacity: 0.4 }} />
           </>
         )}
