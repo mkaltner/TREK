@@ -274,16 +274,17 @@ export default function JourneyDetailPage() {
     return () => { document.body.style.overflow = prev }
   }, [isMobile])
 
-  // Map only shows real journal entries — skeletons are trip-derived
-  // suggestions, not something the user actually journaled at that spot.
+  // Map shows every visible located entry. Trip-derived skeletons carry the
+  // imported route/POI points, so keep them on the map unless the viewer has
+  // explicitly hidden skeleton entries.
   const mapEntries = useMemo(
     () => (current?.entries || []).filter(e =>
-      e.location_lat && e.location_lng &&
+      e.location_lat != null && e.location_lng != null &&
       e.title !== 'Gallery' &&
       e.title !== '[Trip Photos]' &&
-      e.type !== 'skeleton'
+      (!hideSkeletons || e.type !== 'skeleton')
     ),
-    [current?.entries]
+    [current?.entries, hideSkeletons]
   )
 
   const sidebarMapItems = useMemo(() => {
