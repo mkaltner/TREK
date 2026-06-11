@@ -2667,6 +2667,7 @@ describe('JourneyDetailPage', () => {
     it('uses the first gallery photo as the hero image when cover_image is missing', async () => {
       setupDefaultHandlers({
         cover_image: null,
+        trips: [{ ...mockJourneyDetail.trips[0], cover_image: null }],
         gallery: [
           {
             id: 200,
@@ -2694,6 +2695,41 @@ describe('JourneyDetailPage', () => {
 
       const coverImg = document.querySelector('img[src="/api/photos/321/original"]');
       expect(coverImg).toBeTruthy();
+    });
+
+    it('uses the linked trip cover as the hero image before falling back to gallery', async () => {
+      setupDefaultHandlers({
+        cover_image: null,
+        trips: [{ ...mockJourneyDetail.trips[0], cover_image: '/uploads/covers/trip.jpg' }],
+        gallery: [
+          {
+            id: 200,
+            journey_id: 1,
+            photo_id: 321,
+            provider: 'local',
+            file_path: 'photos/gallery.jpg',
+            asset_id: null,
+            owner_id: null,
+            thumbnail_path: null,
+            caption: null,
+            sort_order: 0,
+            width: 800,
+            height: 600,
+            shared: 1,
+            created_at: now,
+          },
+        ],
+      });
+
+      render(<JourneyDetailPage />);
+      await waitFor(() => {
+        expect(screen.getByText('Italy 2026')).toBeInTheDocument();
+      });
+
+      const tripCoverImg = document.querySelector('img[src="/uploads/covers/trip.jpg"]');
+      const galleryImg = document.querySelector('img[src="/api/photos/321/original"]');
+      expect(tripCoverImg).toBeTruthy();
+      expect(galleryImg).toBeFalsy();
     });
   });
 

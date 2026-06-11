@@ -25,11 +25,15 @@ function pickGradient(id: number): string {
   return GRADIENTS[id % GRADIENTS.length]
 }
 
-function journeyCoverSrc(journey: { cover_image?: string | null; cover_photo_id?: number | null }): string | null {
-  if (journey.cover_image) {
-    return journey.cover_image.startsWith('http') || journey.cover_image.startsWith('/')
-      ? journey.cover_image
-      : `/uploads/${journey.cover_image}`
+function coverImageSrc(path?: string | null): string | null {
+  if (!path) return null
+  return path.startsWith('http') || path.startsWith('/') ? path : `/uploads/${path}`
+}
+
+function journeyCoverSrc(journey: { cover_image?: string | null; fallback_cover_image?: string | null; cover_photo_id?: number | null }): string | null {
+  const coverImage = coverImageSrc(journey.cover_image) || coverImageSrc(journey.fallback_cover_image)
+  if (coverImage) {
+    return coverImage
   }
   return journey.cover_photo_id ? `/api/photos/${journey.cover_photo_id}/thumbnail` : null
 }
@@ -466,7 +470,7 @@ export default function JourneyPage() {
   )
 }
 
-function JourneyCard({ journey, onClick }: { journey: Journey & { entry_count?: number; photo_count?: number; cover_photo_id?: number | null; place_count?: number; trip_date_min?: string | null; trip_date_max?: string | null }; onClick: () => void }) {
+function JourneyCard({ journey, onClick }: { journey: Journey & { entry_count?: number; photo_count?: number; fallback_cover_image?: string | null; cover_photo_id?: number | null; place_count?: number; trip_date_min?: string | null; trip_date_max?: string | null }; onClick: () => void }) {
   const { t } = useTranslation()
   const j = journey
   const entryCount = j.entry_count ?? 0

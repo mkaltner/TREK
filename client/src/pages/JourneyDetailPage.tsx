@@ -87,12 +87,15 @@ function photoUrl(p: { photo_id: number }, size: 'thumbnail' | 'original' = 'thu
   return `/api/photos/${p.photo_id}/${size}`
 }
 
-function journeyHeroImage(current: { cover_image?: string | null; gallery?: { photo_id: number }[] }): string | null {
-  if (current.cover_image) {
-    return current.cover_image.startsWith('http') || current.cover_image.startsWith('/')
-      ? current.cover_image
-      : `/uploads/${current.cover_image}`
-  }
+function coverImageSrc(path?: string | null): string | null {
+  if (!path) return null
+  return path.startsWith('http') || path.startsWith('/') ? path : `/uploads/${path}`
+}
+
+function journeyHeroImage(current: { cover_image?: string | null; trips?: { cover_image?: string | null }[]; gallery?: { photo_id: number }[] }): string | null {
+  const coverImage = coverImageSrc(current.cover_image) || coverImageSrc(current.trips?.[0]?.cover_image)
+  if (coverImage) return coverImage
+
   const fallback = current.gallery?.[0]
   return fallback ? photoUrl(fallback, 'original') : null
 }

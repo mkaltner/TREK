@@ -9,6 +9,7 @@ export interface Journey {
   subtitle?: string | null
   cover_gradient?: string | null
   cover_image?: string | null
+  fallback_cover_image?: string | null
   cover_photo_id?: number | null
   status: 'draft' | 'active' | 'completed' | 'archived'
   created_at: number

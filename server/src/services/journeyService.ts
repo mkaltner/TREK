@@ -112,6 +112,7 @@ export function listJourneys(userId: number) {
     SELECT DISTINCT j.*,
       (SELECT COUNT(*) FROM journey_entries je WHERE je.journey_id = j.id AND je.type != 'skeleton') as entry_count,
       (SELECT COUNT(*) FROM journey_photos jp WHERE jp.journey_id = j.id) as photo_count,
+      (SELECT t.cover_image FROM journey_trips jt JOIN trips t ON jt.trip_id = t.id WHERE jt.journey_id = j.id ORDER BY jt.added_at ASC LIMIT 1) as fallback_cover_image,
       (SELECT jp2.id FROM journey_photos jp2 WHERE jp2.journey_id = j.id ORDER BY jp2.sort_order DESC, jp2.id DESC LIMIT 1) as cover_photo_id,
       (SELECT COUNT(DISTINCT je3.location_name) FROM journey_entries je3 WHERE je3.journey_id = j.id AND je3.location_name IS NOT NULL AND je3.location_name != '') as place_count,
       (SELECT MIN(t.start_date) FROM journey_trips jt JOIN trips t ON jt.trip_id = t.id WHERE jt.journey_id = j.id) as trip_date_min,
@@ -120,7 +121,7 @@ export function listJourneys(userId: number) {
     LEFT JOIN journey_contributors jc ON j.id = jc.journey_id AND jc.user_id = ?
     WHERE j.user_id = ? OR jc.user_id = ?
     ORDER BY j.updated_at DESC
-  `).all(userId, userId, userId) as (Journey & { entry_count: number; photo_count: number; cover_photo_id: number | null; place_count: number; trip_date_min: string | null; trip_date_max: string | null })[];
+  `).all(userId, userId, userId) as (Journey & { entry_count: number; photo_count: number; fallback_cover_image: string | null; cover_photo_id: number | null; place_count: number; trip_date_min: string | null; trip_date_max: string | null })[];
 }
 
 export function createJourney(userId: number, data: {
