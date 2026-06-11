@@ -6,7 +6,7 @@ import {
   addProviderPhoto, addProviderPhotoToGallery,
   deleteEntry, deleteJourney, deletePhoto, getJourneyFull, getSuggestions, listEntries,
   listJourneys, listUserTrips, removeContributor, removeTripFromJourney,
-  reorderEntries, updateContributorRole, updateEntry, updateJourney,
+  reorderEntries, reorderGalleryPhotos, updateContributorRole, updateEntry, updateJourney,
   updateJourneyPreferences,
 } from '../../services/journeyService';
 import { getAssetInfo as getImmichAssetInfo, searchPhotos as searchImmichPhotos } from '../../services/memories/immichService';
@@ -457,6 +457,12 @@ export function registerJourneyTools(server: McpServer, userId: number, scopes: 
           title: journey.title,
           cover_image: journey.cover_image || null,
           gallery: (journey.gallery || []).map((photo: any) => summarizePhotoForMedia(photo)),
+          galleryOrder: (journey.gallery || []).map((photo: any) => ({
+            id: photo.id,
+            sort_order: photo.sort_order,
+            provider: photo.provider,
+            providerAssetId: photo.provider === 'immich' && photo.asset_id ? String(photo.asset_id) : null,
+          })),
           entries: (journey.entries || []).map((entry: any) => summarizeEntryForMedia(entry)),
         },
       });
@@ -641,6 +647,25 @@ export function registerJourneyTools(server: McpServer, userId: number, scopes: 
       const success = reorderEntries(journeyId, userId, orderedIds, undefined);
       if (!success) return notFound('Journey not found, access denied, or entry IDs do not belong to this journey.');
       return ok({ success: true });
+    }
+  );
+
+  if (W) server.registerTool(
+    'reorder_journey_gallery_photos',
+    {
+      description: 'Reorder a Journey gallery by providing the complete ordered list of Journey gallery photo IDs.',
+      inputSchema: {
+        journeyId: z.number().int().positive(),
+        orderedPhotoIds: z.array(z.number().int().positive()),
+      },
+      annotations: TOOL_ANNOTATIONS_WRITE,
+    },
+    async ({ journeyId, orderedPhotoIds }) => {
+      if (isDemoUser(userId)) return demoDenied();
+      const success = reorderGalleryPhotos(journeyId, userId, orderedPhotoIds, undefined);
+      if (!success) return notFound('Journey not found, access denied, or photo IDs do not exactly match this journey gallery.');
+      const journey = getJourneyFull(journeyId, userId);
+      return ok({ success: true, journey });
     }
   );
 

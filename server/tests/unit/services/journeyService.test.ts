@@ -62,6 +62,7 @@ import {
   deleteEntry,
   addPhoto,
   addProviderPhoto,
+  addProviderPhotoToGallery,
   deletePhoto,
   addContributor,
   updateContributorRole,
@@ -69,6 +70,7 @@ import {
   getSuggestions,
   syncTripPlaces,
   reorderEntries,
+  reorderGalleryPhotos,
   onPlaceCreated,
   onPlaceUpdated,
   onPlaceDeleted,
@@ -1543,6 +1545,44 @@ describe('reorderEntries', () => {
     const entries = listEntries(journey.id, user.id)!;
     const day2Entry = entries.find(e => e.id === day2.id)!;
     expect(day2Entry.sort_order).toBe(0);
+  });
+});
+
+describe('reorderGalleryPhotos', () => {
+  it('JOURNEY-SVC-093: reorders the Journey gallery without changing entry photo order', () => {
+    const { user } = createUser(testDb);
+    const journey = createJourney(testDb, user.id);
+    const entry = createJourneyEntry(testDb, journey.id, user.id, { entry_date: '2026-08-01' });
+    const p1 = addProviderPhotoToGallery(journey.id, user.id, 'immich', 'gallery-1')!;
+    const p2 = addProviderPhotoToGallery(journey.id, user.id, 'immich', 'gallery-2')!;
+    const p3 = addProviderPhoto(entry.id, user.id, 'immich', 'entry-3')!;
+
+    expect((getJourneyFull(journey.id, user.id) as any).gallery.map((p: any) => p.id)).toEqual([p1.id, p2.id, p3.id]);
+
+    const ok = reorderGalleryPhotos(journey.id, user.id, [p3.id, p1.id, p2.id]);
+
+    expect(ok).toBe(true);
+    const full = getJourneyFull(journey.id, user.id) as any;
+    expect(full.gallery.map((p: any) => p.id)).toEqual([p3.id, p1.id, p2.id]);
+    expect(full.gallery.map((p: any) => p.sort_order)).toEqual([0, 1, 2]);
+    expect(full.entries[0].photos.map((p: any) => p.id)).toEqual([p3.id]);
+  });
+
+  it('JOURNEY-SVC-094: rejects duplicate, partial, and foreign gallery IDs', () => {
+    const { user } = createUser(testDb);
+    const j1 = createJourney(testDb, user.id);
+    const j2 = createJourney(testDb, user.id);
+    const p1 = addProviderPhotoToGallery(j1.id, user.id, 'immich', 'j1-gallery-1')!;
+    const p2 = addProviderPhotoToGallery(j1.id, user.id, 'immich', 'j1-gallery-2')!;
+    const foreign = addProviderPhotoToGallery(j2.id, user.id, 'immich', 'j2-gallery-1')!;
+
+    expect(reorderGalleryPhotos(j1.id, user.id, [p1.id, p1.id])).toBe(false);
+    expect(reorderGalleryPhotos(j1.id, user.id, [p2.id])).toBe(false);
+    expect(reorderGalleryPhotos(j1.id, user.id, [p2.id, foreign.id])).toBe(false);
+
+    const full = getJourneyFull(j1.id, user.id) as any;
+    expect(full.gallery.map((p: any) => p.id)).toEqual([p1.id, p2.id]);
+    expect(full.gallery.map((p: any) => p.sort_order)).toEqual([0, 1]);
   });
 });
 

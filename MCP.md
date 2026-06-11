@@ -512,6 +512,7 @@ For flights, trains, cars, and cruises, use the **Transport** tools above. Reser
 | `update_journey_entry`            | Edit a journey entry's title, body, date, mood, or location.                                               |
 | `delete_journey_entry`            | Remove an entry from a journey.                                                                            |
 | `reorder_journey_entries`         | Reorder entries in a journey by providing the new ordered list of entry IDs.                               |
+| `reorder_journey_gallery_photos`  | Reorder a Journey gallery by providing the complete ordered list of Journey gallery photo IDs.             |
 | `list_journey_contributors`       | List the contributors of a journey (owner and invited editors/viewers).                                    |
 | `add_journey_contributor`         | Invite a user to a journey with `editor` or `viewer` role.                                                 |
 | `update_journey_contributor_role` | Change a contributor's role between `editor` and `viewer`.                                                 |

@@ -670,6 +670,33 @@ export function reorderEntries(journeyId: number, userId: number, orderedIds: nu
   return true;
 }
 
+// Reorder the Journey gallery itself. The caller must provide the complete
+// set of current journey_photos ids, in the desired display order.
+export function reorderGalleryPhotos(journeyId: number, userId: number, orderedPhotoIds: number[], sid?: string): boolean {
+  if (!canEdit(journeyId, userId)) return false;
+
+  const currentRows = db.prepare('SELECT id FROM journey_photos WHERE journey_id = ? ORDER BY sort_order ASC, id ASC')
+    .all(journeyId) as { id: number }[];
+  if (currentRows.length !== orderedPhotoIds.length) return false;
+
+  const uniqueIds = new Set(orderedPhotoIds);
+  if (uniqueIds.size !== orderedPhotoIds.length) return false;
+
+  const currentIds = new Set(currentRows.map(row => row.id));
+  if (orderedPhotoIds.some(id => !currentIds.has(id))) return false;
+
+  const now = ts();
+  const update = db.prepare('UPDATE journey_photos SET sort_order = ? WHERE id = ? AND journey_id = ?');
+  const tx = db.transaction(() => {
+    orderedPhotoIds.forEach((id, index) => update.run(index, id, journeyId));
+    db.prepare('UPDATE journeys SET updated_at = ? WHERE id = ?').run(now, journeyId);
+  });
+  tx();
+
+  broadcastJourneyEvent(journeyId, 'journey:gallery:reordered', { orderedPhotoIds }, sid);
+  return true;
+}
+
 export function deleteEntry(entryId: number, userId: number, sid?: string): boolean {
   const entry = db.prepare('SELECT * FROM journey_entries WHERE id = ?').get(entryId) as JourneyEntry | undefined;
   if (!entry) return false;
