@@ -87,6 +87,16 @@ function photoUrl(p: { photo_id: number }, size: 'thumbnail' | 'original' = 'thu
   return `/api/photos/${p.photo_id}/${size}`
 }
 
+function journeyHeroImage(current: { cover_image?: string | null; gallery?: { photo_id: number }[] }): string | null {
+  if (current.cover_image) {
+    return current.cover_image.startsWith('http') || current.cover_image.startsWith('/')
+      ? current.cover_image
+      : `/uploads/${current.cover_image}`
+  }
+  const fallback = current.gallery?.[0]
+  return fallback ? photoUrl(fallback, 'original') : null
+}
+
 export default function JourneyDetailPage() {
   const { id } = useParams()
   const navigate = useNavigate()
@@ -356,6 +366,7 @@ export default function JourneyDetailPage() {
     ? current.trips.reduce((max: string, t: any) => t.end_date && (!max || t.end_date > max) ? t.end_date : max, '')
     : null
   const lifecycle = computeJourneyLifecycle(current.status, tripDateMin || null, tripDateMax || null)
+  const heroImage = journeyHeroImage(current)
 
   const showMobileCombined = isMobile && view === 'timeline'
   const showMobileGallery = isMobile && view === 'gallery'
@@ -470,9 +481,9 @@ export default function JourneyDetailPage() {
           {/* Hero card — hidden on mobile gallery/journey views (floating top bar handles branding there) */}
           <div className={`px-4 md:px-0 mb-6 ${isMobileChromeless ? 'hidden' : ''}`}>
             <div className="rounded-none md:rounded-2xl -mx-4 md:mx-0 overflow-hidden relative p-5 md:p-7" style={{ background: pickGradient(current.id), color: 'white' }}>
-                {current.cover_image && (
+                {heroImage && (
                   <div className="absolute inset-0 z-[1]">
-                    <img src={`/uploads/${current.cover_image}`} className="w-full h-full object-cover" alt="" />
+                    <img src={heroImage} className="w-full h-full object-cover" alt="" />
                     <div className="absolute inset-0" style={{ background: pickGradient(current.id), opacity: 0.55 }} />
                   </div>
                 )}

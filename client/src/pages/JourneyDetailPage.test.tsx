@@ -2663,6 +2663,38 @@ describe('JourneyDetailPage', () => {
       const coverImg = document.querySelector('img[src="/uploads/covers/hero.jpg"]');
       expect(coverImg).toBeTruthy();
     });
+
+    it('uses the first gallery photo as the hero image when cover_image is missing', async () => {
+      setupDefaultHandlers({
+        cover_image: null,
+        gallery: [
+          {
+            id: 200,
+            journey_id: 1,
+            photo_id: 321,
+            provider: 'local',
+            file_path: 'photos/gallery.jpg',
+            asset_id: null,
+            owner_id: null,
+            thumbnail_path: null,
+            caption: null,
+            sort_order: 0,
+            width: 800,
+            height: 600,
+            shared: 1,
+            created_at: now,
+          },
+        ],
+      });
+
+      render(<JourneyDetailPage />);
+      await waitFor(() => {
+        expect(screen.getByText('Italy 2026')).toBeInTheDocument();
+      });
+
+      const coverImg = document.querySelector('img[src="/api/photos/321/original"]');
+      expect(coverImg).toBeTruthy();
+    });
   });
 
   // ── FE-PAGE-JOURNEYDETAIL-117 ──────────────────────────────────────────
